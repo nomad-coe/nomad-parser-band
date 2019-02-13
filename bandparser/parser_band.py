@@ -63,7 +63,7 @@ class MainParser(MainHierarchicalParser):
 			#adHoc=self.hallo,
             startReStr=r'B A N D',
             weak=True,
-            sections=['section_run'],
+            sections=['section_run', 'section_method'],
             subMatchers=[
                 SimpleMatcher(
 				    startReStr=r'\s\*\s*Amsterdam\sDensity\sFunctional\s*\(ADF\)\s*2018\s*\*.*',
@@ -93,9 +93,23 @@ class MainParser(MainHierarchicalParser):
 						)	                        
 					]	
 				),
+                SimpleMatcher(startReStr=r'Total System Charge             (?P<total_charge>\d+)\.\d+.*',
+                ),
+                SimpleMatcher( 
+                     startReStr=r'Band Engine Input.*',
+                     subMatchers=[
+                         SimpleMatcher(
+                             startReStr=r'((?i) \s*Basis)',
+                             subMatchers=[
+                                 SimpleMatcher(startReStr=r'((?i)\s*Type\s*(?P<basis_set>[a-z,A-Z]*).*)', )
+                             ],
+                             endReStr=r'((?i) \s*End)'
+                         )
+                    ],
+                    endReStr=r' Using the following basis set files:'
+                ),                               
 			    SimpleMatcher(
 				    startReStr=r' DENSITY FUNCTIONAL POTENTIAL \(scf\)',
-				    sections=['section_method'],
 					subMatchers=[
 					    #SimpleMatcher(
                         #    sections=['section_XC_functionals'],
@@ -113,10 +127,11 @@ class MainParser(MainHierarchicalParser):
 				),
                 SimpleMatcher(
 				    sections=['section_single_configuration_calculation'],
-				    startReStr=r'Energy \(hartree\)            (?P<energy_total>-\d+\.\d+).*'
+				    startReStr=r'Energy \(hartree\)            (?P<energy_total__hartree>-\d+\.\d+).*'
 				)								
             ]
         )
+        
     def hallo(*args):
         print("hallo")
 		
@@ -149,7 +164,7 @@ class MainParser(MainHierarchicalParser):
     def onClose_section_method(self, backend, *args, **kwargs):
         backend.addValue('electronic_structure_method', 'DFT')
         if self.GGA_functional_name != []:
-            print(self.GGA_functional_name)
+            #print(self.GGA_functional_name)
             backend.openNonOverlappingSection('section_XC_functionals')
             backend.addValue('XC_functional_name', 'GGA_X_' + self.GGA_functional_name[0][1])
             backend.closeNonOverlappingSection('section_XC_functionals')
@@ -167,12 +182,9 @@ if __name__ == "__main__":
     #parser.parser_context.super_backend.write_json(sys.stdout)
     print(parser.parser_context.super_backend)
     
-#TODO
-#total energy Energy (hartree)            
-#band gap
-#dipole moment  Final bond energy (PBE)
+#TODO      
+#dipole moment
 #DOS
-#charge
 #k-points
-#basis set with core treatment
 #ADF: Not yet in AMS
+# .out?
