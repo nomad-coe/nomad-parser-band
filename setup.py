@@ -17,7 +17,7 @@ from setuptools import setup, find_packages
 
 def main():
     setup(
-        name='bandparserparser',
+        name='bandparser',
         version='0.1',
         description='NOMAD parser implementation for BAND.',
         author='Jan-Niclas Luy',
