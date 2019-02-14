@@ -52,11 +52,8 @@ class MainParser(MainHierarchicalParser):
     def __init__(self, parser_context, *args, **kwargs):
         super().__init__(parser_context, *args, **kwargs)
         self.lattice_vectors = []
-        self.lattice_vectors_opt = []
         self.atom_labels = []
         self.atom_positions = []
-        self.atom_labels_opt = []
-        self.atom_positions_opt = []        
         self.configuration_periodic_dimensions = []
         self.XC_functional_name = []
         self.LDA_functional_name = []
@@ -70,7 +67,7 @@ class MainParser(MainHierarchicalParser):
             #adHoc=self.hallo,
             startReStr=r'B A N D',
             weak=True,
-            sections=['section_run', 'section_method'],
+            sections=['section_run', 'section_method', 'section_system'],
             subMatchers=[
                 SimpleMatcher(
                     startReStr=r' *   Amsterdam Density Functional  \(ADF\)\s*2018\s*\*.*',
@@ -79,18 +76,17 @@ class MainParser(MainHierarchicalParser):
                     ],    
                     endReStr=r'\s\*{2}.*'),
                 SimpleMatcher(
-                    startReStr=r'Geometry.*',
-                    sections=['section_system'],
+                    startReStr=r'Geometry.*',# G E O M E T R Y    I N    X - Y - Z    F O R M A T
                     subMatchers=[
                         SimpleMatcher(         
                             startReStr=r'  Index Symbol       x \(bohr\)       y \(bohr\)       z \(bohr\).*',
                             subMatchers=[
-                                SimpleMatcher(startReStr=r'\s*\d+\s+([A-Z][a-z]?)\s+([+-]?\d+\.\d+)\s*([+-]?\d+\.\d+)\s*([+-]?\d+\.\d+)\s*', repeats=True, startReAction=self.save_atoms)
+                                SimpleMatcher(startReStr=r'\s*\d+\s+([A-Z][a-z]?)\s+(\d+\.\d+)\s*(\d+\.\d+)\s*(\d+\.\d+)\s*', repeats=True, startReAction=self.save_atoms)#might need to accoutn for negative sign
                             ],
                             endReStr=r'\s*'
                         ),
                         SimpleMatcher(
-                            startReStr=r'Lattice vectors \(bohr\).*',
+                            startReStr=r'Lattice vectors \(bohr\).*',#   REAL SPACE LATTICE VECTORS
                             subMatchers=[
                                 SimpleMatcher(startReStr=r'\s*\d+\s+(\d+\.\d+)\s*(\d+\.\d+)\s*(\d+\.\d+)\s*', repeats=True, startReAction=self.save_lattice)
                             ],
@@ -127,32 +123,20 @@ class MainParser(MainHierarchicalParser):
                     endReStr=r' DENSITY FUNCTIONAL ENERGY \(post-scf\)'
                 ),
                 SimpleMatcher(
-                    startReStr=r' R U N    C O N F I G.*', repeats=True,
+                    startReStr=r' R U N    C O N F I G.*',
                     sections=['section_single_configuration_calculation'],
                     subMatchers=[
-                            SimpleMatcher(
-                                startReStr=r' G E O M E T R Y    I N    X - Y - Z    F O R M A T.*',
-                                sections=['section_system'],
-                                subMatchers=[
-                                    SimpleMatcher(startReStr=r'\s*([A-Z][a-z]?)\s*([+-]?\d+\.\d+)\s*([+-]?\d+\.\d+)\s*([+-]?\d+\.\d+)\s*', repeats=True, startReAction=self.save_atoms
-                                    ),
-                                    SimpleMatcher(startReStr=r'\s*VEC\d+\s+([+-]?\d+\.\d+)\s*([+-]?\d+\.\d+)\s*([+-]?\d+\.\d+)\s*', repeats=True, startReAction=self.save_lattice_opt
-                                    )                        
-                                ],
-                                endReStr=r'   Total nr. of atoms'
-                            ),
-                            
-                            SimpleMatcher(startReStr=r' Final bond energy \([a-zA-Z]*\)\s*(?P<energy_total__hartree>-\d+\.\d+).*'
-                            ),
-                            SimpleMatcher(
-                                sections=['section_dos'],
-                                startReStr=r' TOTALDOS.*',
-                                subMatchers=[
-                                    SimpleMatcher(
-                                        startReStr=r'\s*([+-]?\d+\.\d+E[+-]?\d+)\s*([+-]?\d+\.\d+E[+-]?\d+)\s*([+-]?\d+\.\d+E[+-]?\d+).*', repeats=True, startReAction=self.save_dos)
-                                ],
-                                endReStr=r' ENDINPUT.*',
-                            )   
+                        SimpleMatcher(
+                            sections=['section_dos'],
+                            startReStr=r' TOTALDOS.*',
+                            subMatchers=[
+                                SimpleMatcher(
+                                    startReStr=r'\s*([+-]?\d+\.\d+E[+-]?\d+)\s*([+-]?\d+\.\d+E[+-]?\d+)\s*([+-]?\d+\.\d+E[+-]?\d+).*', repeats=True, startReAction=self.save_dos)
+                            ],
+                            endReStr=r' ENDINPUT.*',
+                        ),
+                        SimpleMatcher(startReStr=r'Energy \(hartree\)            (?P<energy_total__hartree>-\d+\.\d+).*'
+                        )   
                     ]
                 ),                             
             ]
@@ -170,16 +154,9 @@ class MainParser(MainHierarchicalParser):
         self.atom_positions.append([float(groups[1]), float(groups[2]), float(groups[3])])
         self.atom_labels.append(groups[0])
         
-    def save_atoms_opt(self, _, groups):
-        self.atom_positions_opt.append([float(groups[1]), float(groups[2]), float(groups[3])])
-        self.atom_labels_opt.append(groups[0])        
-        
     def save_lattice(self, _, groups):
         self.lattice_vectors.append([float(groups[0]), float(groups[1]), float(groups[2])])
-        
-    def save_lattice_opt(self, _, groups):
-        self.lattice_vectors_opt.append([float(groups[0]), float(groups[1]), float(groups[2])])
-        
+
     def save_lda(self, _, groups):
         self.LDA_functional_name.append(groups[0])
         
@@ -194,17 +171,15 @@ class MainParser(MainHierarchicalParser):
         backend.addArrayValues('atom_labels', np.array(self.atom_labels))
         backend.addArrayValues('atom_positions', np.array(self.atom_positions)*pc['Bohr radius'][0])
         #print(self.lattice_vectors)
-        if self.configuration_periodic_dimensions != []:
-            backend.addArrayValues('configuration_periodic_dimensions', np.array(self.configuration_periodic_dimensions))
-            for _ in range(0, len(self.lattice_vectors)):
-                self.configuration_periodic_dimensions.append(True)
-            for _ in range(len(self.lattice_vectors),3):
-                self.configuration_periodic_dimensions.append(False)
-            #print(self.configuration_periodic_dimensions)
+        for _ in range(0, len(self.lattice_vectors)):
+            self.configuration_periodic_dimensions.append(True)
+        for _ in range(len(self.lattice_vectors),3):
+            self.configuration_periodic_dimensions.append(False)
+        #print(self.configuration_periodic_dimensions)
         for _ in range(len(self.lattice_vectors),3):
             self.lattice_vectors.append([0,0,0])
-        if self.lattice_vectors != []:
-            backend.addArrayValues('lattice_vectors', np.array(self.lattice_vectors)*pc['Bohr radius'][0])
+        backend.addArrayValues('lattice_vectors', np.array(self.lattice_vectors)*pc['Bohr radius'][0])
+        backend.addArrayValues('configuration_periodic_dimensions', np.array(self.configuration_periodic_dimensions))
         
     def onClose_section_dos(self, backend, *args, **kwargs):
         #print(self.dos_energies)
