@@ -9,7 +9,6 @@ syntax: glob
 *.swp
 .DS_Store
 __pycache__/
-*.egg_info/
 
 # logging files
 detailed.log
@@ -54,6 +53,6 @@ lib/
 env/
 
 # Setuptools install folder
-vaspparser.egg-info/
+bandparser.egg-info/
 
 .directory
