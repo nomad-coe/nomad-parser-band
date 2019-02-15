@@ -56,3 +56,4 @@ env/
 bandparser.egg-info/
 
 .directory
+*.annotate

@@ -20,6 +20,7 @@ from ase.io import read as ase_read
 from scipy.constants import physical_constants as pc
 
 from nomadcore.simple_parser import SimpleMatcher
+import nomadcore.simple_parser
 from nomadcore.baseclasses import ParserInterface, MainHierarchicalParser
 
 from nomad.parsing import LocalBackend
@@ -56,7 +57,7 @@ class MainParser(MainHierarchicalParser):
         self.atom_labels = []
         self.atom_positions = []
         self.atom_labels_opt = []
-        self.atom_positions_opt = []        
+        self.atom_positions_opt = []
         self.configuration_periodic_dimensions = []
         self.XC_functional_name = []
         self.LDA_functional_name = []
@@ -80,13 +81,13 @@ class MainParser(MainHierarchicalParser):
                     startReStr=r' \*   Amsterdam Density Functional  \(ADF\)\s*\d*\s*\*.*',
                     subMatchers=[
                         SimpleMatcher(startReStr=r'\s\*\s{47}r(?P<program_version>\d+).*'),
-                    ],    
+                    ],
                     endReStr=r'\s\*{2}.*'),
                 SimpleMatcher(
                     startReStr=r'Geometry.*',
                     sections=['section_system'],
                     subMatchers=[
-                        SimpleMatcher(         
+                        SimpleMatcher(
                             startReStr=r'  Index Symbol       x \(bohr\)       y \(bohr\)       z \(bohr\).*',
                             subMatchers=[
                                 SimpleMatcher(startReStr=r'\s*\d+\s+([A-Z][a-z]?)\s+([+-]?\d+\.\d+)\s*([+-]?\d+\.\d+)\s*([+-]?\d+\.\d+)\s*', repeats=True, startReAction=self.save_atoms)
@@ -99,12 +100,12 @@ class MainParser(MainHierarchicalParser):
                                 SimpleMatcher(startReStr=r'\s*\d+\s+(\d+\.\d+)\s*(\d+\.\d+)\s*(\d+\.\d+)\s*', repeats=True, startReAction=self.save_lattice)
                             ],
                             endReStr=r'\s*'
-                        )                            
-                    ]    
+                        )
+                    ]
                 ),
                 SimpleMatcher(startReStr=r'Total System Charge             (?P<total_charge>\d+)\.\d+.*',
                 ),
-                SimpleMatcher( 
+                SimpleMatcher(
                      startReStr=r'Band Engine Input.*',
                      subMatchers=[
                          SimpleMatcher(
@@ -116,7 +117,7 @@ class MainParser(MainHierarchicalParser):
                          )
                     ],
                     endReStr=r' Using the following basis set files:'
-                ),                               
+                ),
                 SimpleMatcher(
                     startReStr=r' DENSITY FUNCTIONAL POTENTIAL \(scf\)',
                     subMatchers=[
@@ -125,7 +126,7 @@ class MainParser(MainHierarchicalParser):
                         SimpleMatcher(startReStr=r'    Gradient Corrections:              ([a-z,A-Z]*)c\s*([a-z,A-Z]*)x.*', startReAction=self.save_functional
                         ),
                         SimpleMatcher(startReStr=r'    Meta-GGA:                          ([a-z,A-Z]*).*', startReAction=self.save_meta_gga
-                        )                        
+                        )
                     ],
                     endReStr=r' DENSITY FUNCTIONAL ENERGY \(post-scf\)'
                 ),
@@ -140,11 +141,11 @@ class MainParser(MainHierarchicalParser):
                                     SimpleMatcher(startReStr=r'\s*([A-Z][a-z]?)\s*([+-]?\d+\.\d+)\s*([+-]?\d+\.\d+)\s*([+-]?\d+\.\d+)\s*', repeats=True, startReAction=self.save_atoms
                                     ),
                                     SimpleMatcher(startReStr=r'\s*VEC\d+\s+([+-]?\d+\.\d+)\s*([+-]?\d+\.\d+)\s*([+-]?\d+\.\d+)\s*', repeats=True, startReAction=self.save_lattice_opt
-                                    )                        
+                                    )
                                 ],
                                 endReStr=r'   Total nr. of atoms'
                             ),
-                            
+
                             SimpleMatcher(startReStr=r' Final bond energy \([a-zA-Z]*\)\s*(?P<energy_total__hartree>-\d+\.\d+).*'
                             ),
                             SimpleMatcher(
@@ -155,43 +156,43 @@ class MainParser(MainHierarchicalParser):
                                         startReStr=r'\s*([+-]?\d+\.\d+E[+-]?\d+)\s*([+-]?\d+\.\d+E[+-]?\d+)\s*([+-]?\d+\.\d+E[+-]?\d+).*', repeats=True, startReAction=self.save_dos)
                                 ],
                                 endReStr=r' ENDINPUT.*',
-                            )   
+                            )
                     ]
-                ),                             
+                ),
             ]
         )
-        
+
     #def hallo(*args):
     #    print("hallo")
-        
+
     def save_dos(self, _, groups):
         self.dos_values.append([float(groups[1]), float(groups[2])])
         self.dos_energies.append(float(groups[0]))
-             
+
     def save_atoms(self, _, groups):
         self.atom_positions.append([float(groups[1]), float(groups[2]), float(groups[3])])
         self.atom_labels.append(groups[0])
-        
+
     def save_atoms_opt(self, _, groups):
         self.atom_positions_opt.append([float(groups[1]), float(groups[2]), float(groups[3])])
-        self.atom_labels_opt.append(groups[0])        
-        
+        self.atom_labels_opt.append(groups[0])
+
     def save_lattice(self, _, groups):
         self.lattice_vectors.append([float(groups[0]), float(groups[1]), float(groups[2])])
-        
+
     def save_lattice_opt(self, _, groups):
         self.lattice_vectors_opt.append([float(groups[0]), float(groups[1]), float(groups[2])])
-        
+
     def save_lda(self, _, groups):
         self.LDA_functional_name.append(groups[0])
-        
+
     def save_meta_gga(self, _, groups):
         self.meta_GGA_functional_name.append(groups[0])
-            
+
     def save_functional(self, _, groups):
         if groups != None:
             self.GGA_functional_name.append([groups[0], groups[1]])
-        
+
     def onClose_section_system(self, backend, index, *args, **kwargs):
         self.system_index = index
         backend.addArrayValues('atom_labels', np.array(self.atom_labels))
@@ -206,7 +207,7 @@ class MainParser(MainHierarchicalParser):
             self.lattice_vectors.append([0,0,0])
         if self.lattice_vectors != []:
             backend.addArrayValues('lattice_vectors', np.array(self.lattice_vectors)*pc['Bohr radius'][0])
-        
+
     def onClose_section_dos(self, backend, *args, **kwargs):
         backend.addArrayValues('dos_values', np.array(self.dos_values))
         backend.addArrayValues('dos_energies', np.array(self.dos_energies)*pc['Hartree energy'][0])
@@ -232,13 +233,15 @@ class MainParser(MainHierarchicalParser):
     def onClose_section_run(self, backend, *args, **kwargs):
         backend.addValue('program_name', 'BAND')
         backend.addValue('program_basis_set_type', 'Slater')
-        
+
     def onClose_section_single_configuration_calculation(self, backend, *args, **kwargs):
         backend.addValue('single_configuration_calculation_to_system_ref', self.system_index)
         backend.addValue('single_configuration_to_calculation_method_ref', 0)
 
+
 if __name__ == "__main__":
+    nomadcore.simple_parser.annotate = True
     parser = BANDParser(backend=LocalBackend)
     parser.parse(sys.argv[1])
-    #parser.parser_context.super_backend.write_json(sys.stdout)
-    #print(parser.parser_context.super_backend)
+    parser.parser_context.super_backend.write_json(sys.stdout)
+    # print(parser.parser_context.super_backend)
