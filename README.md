@@ -24,3 +24,8 @@ To run the parser:
 cd nomad/dependencies/parser/band
 python bandparser/parser_band.py test/new-18.105/<file.out>
 ```
+
+To see the annotation about matched and converted parts of the file:
+```
+less -R test/new-18.105/<file.out>.annotate
+```
