@@ -26,7 +26,7 @@ from nomad.parsing import LocalBackend
 
 
 """
-A very basic BAND parser.
+A basic BAND parser.
 """
 
 
@@ -64,18 +64,22 @@ class MainParser(MainHierarchicalParser):
         self.meta_GGA_functional_name = []
         self.dos_values = []
         self.dos_energies = []
+        self.system_idex = None
 
         self.root_matcher = SimpleMatcher(
             name='root',
             #adHoc=self.hallo,
             startReStr=r'B A N D',
             weak=True,
-            sections=['section_run', 'section_method'],
+            sections=['section_run', 'section_method', 'section_sampling_method'],
             subMatchers=[
                 SimpleMatcher(
-                    startReStr=r' *   Amsterdam Density Functional  \(ADF\)\s*2018\s*\*.*',
+                    startReStr=r'       \*  (?P<sampling_method>GEOMETRY OPTIMIZATION)  \*'
+                ),
+                SimpleMatcher(
+                    startReStr=r' \*   Amsterdam Density Functional  \(ADF\)\s*\d*\s*\*.*',
                     subMatchers=[
-                        SimpleMatcher(startReStr=r'\s\*\s{47}r(?P<program_version>\d+).*')
+                        SimpleMatcher(startReStr=r'\s\*\s{47}r(?P<program_version>\d+).*'),
                     ],    
                     endReStr=r'\s\*{2}.*'),
                 SimpleMatcher(
@@ -114,7 +118,6 @@ class MainParser(MainHierarchicalParser):
                     endReStr=r' Using the following basis set files:'
                 ),                               
                 SimpleMatcher(
-                    #sections=['section_XC_functionals'],
                     startReStr=r' DENSITY FUNCTIONAL POTENTIAL \(scf\)',
                     subMatchers=[
                         SimpleMatcher(startReStr=r'    LDA:                               ([a-z,A-Z]*).*', startReAction=self.save_lda
@@ -158,12 +161,11 @@ class MainParser(MainHierarchicalParser):
             ]
         )
         
-    def hallo(*args):
-        print("hallo")
+    #def hallo(*args):
+    #    print("hallo")
         
     def save_dos(self, _, groups):
         self.dos_values.append([float(groups[1]), float(groups[2])])
-        #print('test')
         self.dos_energies.append(float(groups[0]))
              
     def save_atoms(self, _, groups):
@@ -190,31 +192,28 @@ class MainParser(MainHierarchicalParser):
         if groups != None:
             self.GGA_functional_name.append([groups[0], groups[1]])
         
-    def onClose_section_system(self, backend, *args, **kwargs):
+    def onClose_section_system(self, backend, index, *args, **kwargs):
+        self.system_index = index
         backend.addArrayValues('atom_labels', np.array(self.atom_labels))
         backend.addArrayValues('atom_positions', np.array(self.atom_positions)*pc['Bohr radius'][0])
-        #print(self.lattice_vectors)
         if self.configuration_periodic_dimensions != []:
             backend.addArrayValues('configuration_periodic_dimensions', np.array(self.configuration_periodic_dimensions))
             for _ in range(0, len(self.lattice_vectors)):
                 self.configuration_periodic_dimensions.append(True)
             for _ in range(len(self.lattice_vectors),3):
                 self.configuration_periodic_dimensions.append(False)
-            #print(self.configuration_periodic_dimensions)
         for _ in range(len(self.lattice_vectors),3):
             self.lattice_vectors.append([0,0,0])
         if self.lattice_vectors != []:
             backend.addArrayValues('lattice_vectors', np.array(self.lattice_vectors)*pc['Bohr radius'][0])
         
     def onClose_section_dos(self, backend, *args, **kwargs):
-        #print(self.dos_energies)
         backend.addArrayValues('dos_values', np.array(self.dos_values))
         backend.addArrayValues('dos_energies', np.array(self.dos_energies)*pc['Hartree energy'][0])
 
     def onClose_section_method(self, backend, *args, **kwargs):
         backend.addValue('electronic_structure_method', 'DFT')
         if self.GGA_functional_name != []:
-            #print(self.GGA_functional_name)
             backend.openNonOverlappingSection('section_XC_functionals')
             backend.addValue('XC_functional_name', 'GGA_X_' + self.GGA_functional_name[0][1])
             backend.closeNonOverlappingSection('section_XC_functionals')
@@ -222,26 +221,24 @@ class MainParser(MainHierarchicalParser):
             backend.addValue('XC_functional_name', 'GGA_C_' + self.GGA_functional_name[0][0])
             backend.closeNonOverlappingSection('section_XC_functionals')
         if self.meta_GGA_functional_name != []:
-            #print(self.meta_GGA_functional_name)
             backend.openNonOverlappingSection('section_XC_functionals')
             backend.addValue('XC_functional_name', 'MGGA_XC_' + self.meta_GGA_functional_name[0])
             backend.closeNonOverlappingSection('section_XC_functionals')
         if self.LDA_functional_name != [] and self.GGA_functional_name == []:
-            #print(self.LDA_functional_name)
             backend.openNonOverlappingSection('section_XC_functionals')
             backend.addValue('XC_functional_name', 'LDA_XC_' + self.LDA_functional_name[0])
             backend.closeNonOverlappingSection('section_XC_functionals')
 
     def onClose_section_run(self, backend, *args, **kwargs):
         backend.addValue('program_name', 'BAND')
-        backend.addValue('program_basis_set_type', 'slater')
+        backend.addValue('program_basis_set_type', 'Slater')
+        
+    def onClose_section_single_configuration_calculation(self, backend, *args, **kwargs):
+        backend.addValue('single_configuration_calculation_to_system_ref', self.system_index)
+        backend.addValue('single_configuration_to_calculation_method_ref', 0)
 
 if __name__ == "__main__":
     parser = BANDParser(backend=LocalBackend)
     parser.parse(sys.argv[1])
     #parser.parser_context.super_backend.write_json(sys.stdout)
-    print(parser.parser_context.super_backend)
-    
-#TODO
-# .out?
-#geoopt?
+    #print(parser.parser_context.super_backend)
