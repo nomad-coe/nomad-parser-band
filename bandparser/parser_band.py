@@ -1,4 +1,4 @@
-# Copyright 2019-2018 Jan-Niclas Luy
+# Copyright 2019 Jan-Niclas Luy
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -64,7 +64,7 @@ class MainParser(MainHierarchicalParser):
         self.meta_GGA_functional_name = []
         self.dos_values = []
         self.dos_energies = []
-        self.system_idex = None
+        #self.system_index = None
 
         self.root_matcher = SimpleMatcher(
             name='root',
@@ -151,8 +151,18 @@ class MainParser(MainHierarchicalParser):
                                 sections=['section_dos'],
                                 startReStr=r' TOTALDOS.*',
                                 subMatchers=[
-                                    SimpleMatcher(
-                                        startReStr=r'\s*([+-]?\d+\.\d+E[+-]?\d+)\s*([+-]?\d+\.\d+E[+-]?\d+)\s*([+-]?\d+\.\d+E[+-]?\d+).*', repeats=True, startReAction=self.save_dos)
+                                    SimpleMatcher(startReStr=r' NSPIN,NE= 2.*',
+                                        subMatchers=[
+                                            SimpleMatcher(
+                                                startReStr=r'\s*([+-]?\d+\.\d+E[+-]?\d+)\s*([+-]?\d+\.\d+E[+-]?\d+)\s*([+-]?\d+\.\d+E[+-]?\d+).*', repeats=True, startReAction=self.save_dos_2)
+                                        ]
+                                    ),
+                                    SimpleMatcher(startReStr=r' NSPIN,NE= 1.*',
+                                        subMatchers=[
+                                            SimpleMatcher(
+                                                startReStr=r'\s*([+-]?\d+\.\d+E[+-]?\d+)\s*([+-]?\d+\.\d+E[+-]?\d+).*', repeats=True, startReAction=self.save_dos_1)
+                                        ]
+                                    )
                                 ],
                                 endReStr=r' ENDINPUT.*',
                             )   
@@ -164,9 +174,13 @@ class MainParser(MainHierarchicalParser):
     #def hallo(*args):
     #    print("hallo")
         
-    def save_dos(self, _, groups):
+    def save_dos_2(self, _, groups):
         self.dos_values.append([float(groups[1]), float(groups[2])])
         self.dos_energies.append(float(groups[0]))
+        
+    def save_dos_1(self, _, groups):
+        self.dos_values.append([float(groups[1])])
+        self.dos_energies.append(float(groups[0]))        
              
     def save_atoms(self, _, groups):
         self.atom_positions.append([float(groups[1]), float(groups[2]), float(groups[3])])
