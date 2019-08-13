@@ -174,23 +174,15 @@ class MainParser(MainHierarchicalParser):
 
     #def hallo(*args):
     #    print("hallo")
-<<<<<<< HEAD
-        
+
     def save_dos_2(self, _, groups):
         self.dos_values.append([float(groups[1]), float(groups[2])])
         self.dos_energies.append(float(groups[0]))
-        
+
     def save_dos_1(self, _, groups):
         self.dos_values.append([float(groups[1])])
-        self.dos_energies.append(float(groups[0]))        
-             
-=======
-
-    def save_dos(self, _, groups):
-        self.dos_values.append([float(groups[1]), float(groups[2])])
         self.dos_energies.append(float(groups[0]))
 
->>>>>>> b68bce7db5c02ac56b1cf892ae20458fffb23b65
     def save_atoms(self, _, groups):
         self.atom_positions.append([float(groups[1]), float(groups[2]), float(groups[3])])
         self.atom_labels.append(groups[0])
