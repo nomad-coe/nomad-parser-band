@@ -209,7 +209,7 @@ class MainParser(MainHierarchicalParser):
 
     def onClose_section_run(self, backend, *args, **kwargs):
         backend.addValue('program_name', 'BAND')
-        backend.addValue('program_basis_set_type', 'slater')
+        backend.addValue('program_basis_set_type', 'numeric AOs')
 
 if __name__ == "__main__":
     parser = BANDParser(backend=LocalBackend)

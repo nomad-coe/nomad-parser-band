@@ -246,7 +246,7 @@ class MainParser(MainHierarchicalParser):
 
     def onClose_section_run(self, backend, *args, **kwargs):
         backend.addValue('program_name', 'BAND')
-        backend.addValue('program_basis_set_type', 'Slater')
+        backend.addValue('program_basis_set_type', 'numeric AOs')
 
     def onClose_section_single_configuration_calculation(self, backend, *args, **kwargs):
         backend.addValue('single_configuration_calculation_to_system_ref', self.system_index)
