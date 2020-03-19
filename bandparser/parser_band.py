@@ -23,7 +23,7 @@ from nomadcore.simple_parser import SimpleMatcher
 import nomadcore.simple_parser
 from nomadcore.baseclasses import ParserInterface, MainHierarchicalParser
 
-from nomad.parsing import LocalBackend
+from nomad.parsing.legacy import Backend
 
 
 """
@@ -255,7 +255,7 @@ class MainParser(MainHierarchicalParser):
 
 if __name__ == "__main__":
     nomadcore.simple_parser.annotate = True
-    parser = BANDParser(backend=LocalBackend)
+    parser = BANDParser(backend=Backend)
     parser.parse(sys.argv[1])
     parser.parser_context.super_backend.write_json(sys.stdout)
     # print(parser.parser_context.super_backend)
