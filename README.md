@@ -1,31 +1,78 @@
-This is the main repository of the [NOMAD](https://www.nomad-coe.eu/) parser for
-[AMS-BAND](https://www.scm.com/).
+This is a NOMAD parser for [BAND](https://www.scm.com/product/band_periodicdft/). It will read BAND input and
+output files and provide all information in NOMAD's unified Metainfo based Archive format.
 
-# Setup and run example
+## Preparing code input and output file for uploading to NOMAD
 
-We are currently targeting Python 3.6
+NOMAD accepts `.zip` and `.tar.gz` archives as uploads. Each upload can contain arbitrary
+files and directories. NOMAD will automatically try to choose the right parser for you files.
+For each parser (i.e. for each supported code) there is one type of file that the respective
+parser can recognize. We call these files `mainfiles` as they typically are the main
+output file a code. For each `mainfile` that NOMAD discovers it will create an entry
+in the database that users can search, view, and download. NOMAD will associate all files
+in the same directory as files that also belong to that entry. Parsers
+might also read information from these auxillary files. This way you can add more files
+to an entry, even if the respective parser/code might not directly support it.
 
-Best use a virtual environment:
+For band please provide at least the files from this table if applicable to your
+calculations (remember that you can provide more files if you want):
+
+
+
+To create an upload with all calculations in a directory structure:
+
 ```
-virtualenv -p python3 .pyenv
-source .pyenv/bin/activate
+zip -r <upload-file>.zip <directory>/*
 ```
 
-Clone and install the nomad infrastructure and the necessary dependencies (including this parser)
+Go to the [NOMAD upload page](https://nomad-lab.eu/prod/rae/gui/uploads) to upload files
+or find instructions about how to upload files from the command line.
+
+## Using the parser
+
+You can use NOMAD's parsers and normalizers locally on your computer. You need to install
+NOMAD's pypi package:
+
 ```
-git clone https://gitlab.mpcdf.mpg.de/nomad-lab/nomad-FAIR nomad
-git submodule update --init
-pip install -r requirements.txt
-./dependencies.sh -e
+pip install nomad-lab
 ```
 
-To run the parser:
+To parse code input/output from the command line, you can use NOMAD's command line
+interface (CLI) and print the processing results output to stdout:
+
 ```
-cd nomad/dependencies/parser/band
-python bandparser/parser_band.py test/new-18.105/<file.out>
+nomad parse --show-archive <path-to-file>
 ```
 
-To see the annotation about matched and converted parts of the file:
+To parse a file in Python, you can program something like this:
+```python
+import sys
+from nomad.cli.parse import parse, normalize_all
+
+# match and run the parser
+backend = parse(sys.argv[1])
+# run all normalizers
+normalize_all(backend)
+
+# get the 'main section' section_run as a metainfo object
+section_run = backend.resource.contents[0].section_run[0]
+
+# get the same data as JSON serializable Python dict
+python_dict = section_run.m_to_dict()
 ```
-less -R test/new-18.105/<file.out>.annotate
+
+## Developing the parser
+
+Also install NOMAD's pypi package:
+
 ```
+pip install nomad-lab
+```
+
+Clone the parser project and install it in development mode:
+
+```
+git clone https://gitlab.mpcdf.mpg.de/nomad-lab/parser-band parser-band
+pip install -e parser-band
+```
+
+Running the parser now, will use the parser's Python code from the clone project.
