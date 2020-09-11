@@ -1,0 +1,7 @@
+codeLabel: BAND
+codeLabelStyle: all in capitals
+codeUrl: https://www.scm.com/product/band_periodicdft/
+parserDirName: dependencies/parsers/band/
+parserGitUrl: https://gitlab.mpcdf.mpg.de/nomad-lab/parser-band
+parserSpecific: ''
+tableOfFiles: ''
