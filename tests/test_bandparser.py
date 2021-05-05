@@ -88,4 +88,3 @@ def test_dos(parser):
     parser.parse('tests/data/NiO-dos-restricted.out', archive, None)
     sec_dos = archive.section_run[0].section_single_configuration_calculation[0].section_dos[0]
     assert np.shape(sec_dos.dos_values) == (1, 154)
-
