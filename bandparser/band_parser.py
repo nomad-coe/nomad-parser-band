@@ -25,7 +25,7 @@ from nomad.units import ureg
 from nomad.parsing.parser import FairdiParser
 from nomad.parsing.file_parser.text_parser import TextParser, Quantity
 from nomad.datamodel.metainfo.common_dft import Run, Method, XCFunctionals, System,\
-    SingleConfigurationCalculation, ScfIteration, Dos, SamplingMethod
+    SingleConfigurationCalculation, ScfIteration, Dos, DosValues, SamplingMethod
 
 
 class OutParser(TextParser):
@@ -191,9 +191,13 @@ class BandParser(FairdiParser):
             total_dos = source.get('total_dos', {}).get('dos')
             if total_dos is not None:
                 total_dos = np.transpose(total_dos)
-                sec_dos = sec_scc.m_create(Dos)
+                sec_dos = sec_scc.m_create(Dos, SingleConfigurationCalculation.dos_electronic)
                 sec_dos.dos_energies = total_dos[0] * ureg.hartree
-                sec_dos.dos_values = (total_dos[1:] * (1 / ureg.hartree)).to('1/J').magnitude
+                total_dos = total_dos[1:]
+                for spin in range(len(total_dos)):
+                    sec_dos_values = sec_dos.m_create(DosValues, Dos.dos_total)
+                    sec_dos_values.dos_spin = spin
+                    sec_dos_values.dos_values = (total_dos[spin] * (1 / ureg.hartree)).to('1/J').magnitude
 
             return sec_scc
 
