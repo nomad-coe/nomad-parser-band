@@ -192,12 +192,12 @@ class BandParser(FairdiParser):
             if total_dos is not None:
                 total_dos = np.transpose(total_dos)
                 sec_dos = sec_scc.m_create(Dos, SingleConfigurationCalculation.dos_electronic)
-                sec_dos.dos_energies = total_dos[0] * ureg.hartree
+                sec_dos.energies = total_dos[0] * ureg.hartree
                 total_dos = total_dos[1:]
                 for spin in range(len(total_dos)):
-                    sec_dos_values = sec_dos.m_create(DosValues, Dos.dos_total)
-                    sec_dos_values.dos_spin = spin
-                    sec_dos_values.dos_values = (total_dos[spin] * (1 / ureg.hartree)).to('1/J').magnitude
+                    sec_dos_values = sec_dos.m_create(DosValues, Dos.total)
+                    sec_dos_values.spin = spin
+                    sec_dos_values.value = total_dos[spin] * (1 / ureg.hartree)
 
             return sec_scc
 
