@@ -17,6 +17,7 @@
 # limitations under the License.
 #
 import os
+from re import S
 import numpy as np
 import logging
 from datetime import datetime
@@ -25,7 +26,8 @@ from nomad.units import ureg
 from nomad.parsing.parser import FairdiParser
 from nomad.parsing.file_parser.text_parser import TextParser, Quantity
 from nomad.datamodel.metainfo.common_dft import Run, Method, XCFunctionals, System,\
-    SingleConfigurationCalculation, ScfIteration, Dos, DosValues, SamplingMethod
+    SingleConfigurationCalculation, ScfIteration, Dos, DosValues, SamplingMethod,\
+    Energy, Forces
 
 
 class OutParser(TextParser):
@@ -80,7 +82,7 @@ class OutParser(TextParser):
                 r'E N E R G Y   A N A L Y S I S([\s\S]+?)\={90}',
                 sub_parser=TextParser(quantities=[
                     Quantity(
-                        'electronic_kinetic_energy',
+                        'energy_kinetic_electronic',
                         rf'Kinetic\s*({re_float})', dtype=float, unit=ureg.hartree),
                     Quantity(
                         'energy_XC',
@@ -95,7 +97,7 @@ class OutParser(TextParser):
                 'energy_total',
                 rf'Energy\s*\(hartree\)\s*({re_float})', dtype=float, unit=ureg.hartree),
             Quantity(
-                'atom_forces',
+                'forces_total',
                 r'FINAL GRADIENTS([\s\S]+?)\n *\n',
                 convert=False, str_operation=lambda x: np.array(
                     [v.split()[2:5] for v in x.strip().split('\n')],
@@ -172,15 +174,21 @@ class BandParser(FairdiParser):
         def parse_scc(source):
             sec_scc = sec_run.m_create(SingleConfigurationCalculation)
 
-            for key in ['energy_total', 'atom_forces']:
-                val = source.get(key)
-                if val is not None:
-                    setattr(sec_scc, key, val)
+            if source.get('energy_total') is not None:
+                sec_scc.m_add_sub_section(
+                    SingleConfigurationCalculation.energy_total, Energy(
+                        value=source.get('energy_total')))
+
+            if source.get('forces_total') is not None:
+                sec_scc.m_add_sub_section(
+                    SingleConfigurationCalculation.forces_total, Forces(
+                        value=source.get('forces_total')))
 
             # energy contributions
             for key, val in source.get('energies', {}).items():
                 if val is not None:
-                    setattr(sec_scc, key, val)
+                    sec_scc.m_add_sub_section(getattr(
+                        SingleConfigurationCalculation, key), Energy(value=val))
 
             # self consistency
             for energy_change in source.get('self_consistency', {}).get('energy_change', []):
