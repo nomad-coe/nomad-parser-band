@@ -17,7 +17,6 @@
 # limitations under the License.
 #
 import os
-from re import S
 import numpy as np
 import logging
 from datetime import datetime
@@ -193,7 +192,7 @@ class BandParser(FairdiParser):
             # self consistency
             for energy_change in source.get('self_consistency', {}).get('energy_change', []):
                 sec_scf = sec_scc.m_create(ScfIteration)
-                sec_scf.energy_change_scf_iteration = energy_change
+                sec_scf.energy_change = energy_change
 
             # dos
             total_dos = source.get('total_dos', {}).get('dos')

@@ -55,9 +55,9 @@ def test_scf(parser):
     assert sec_scc.energy_XC.value.magnitude == approx(-1.01588269e-17)
     assert sec_scc.energy_electrostatic.value.magnitude == approx(-8.69562185e-18)
 
-    sec_scfs = sec_scc.section_scf_iteration
+    sec_scfs = sec_scc.scf_iteration
     assert len(sec_scfs) == 20
-    assert sec_scfs[11].energy_change_scf_iteration.magnitude == approx(2.1449944e-21)
+    assert sec_scfs[11].energy_change.magnitude == approx(2.1449944e-21)
 
 
 def test_geometry_optimization(parser):
@@ -67,7 +67,7 @@ def test_geometry_optimization(parser):
     sec_sccs = archive.section_run[0].section_single_configuration_calculation
     assert len(sec_sccs) == 22
     assert sec_sccs[17].energy_total.value.magnitude == approx(-1.10701399e-17)
-    assert len(sec_sccs[6].section_scf_iteration) == 11
+    assert len(sec_sccs[6].scf_iteration) == 11
     assert sec_sccs[10].forces_total.value[5][1].magnitude == approx(3.11423748e-11)
 
     sec_systems = archive.section_run[0].section_system
