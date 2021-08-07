@@ -24,9 +24,14 @@ from datetime import datetime
 from nomad.units import ureg
 from nomad.parsing.parser import FairdiParser
 from nomad.parsing.file_parser.text_parser import TextParser, Quantity
-from nomad.datamodel.metainfo.common_dft import Run, Method, XCFunctionals, System,\
-    SingleConfigurationCalculation, ScfIteration, Dos, DosValues, SamplingMethod,\
-    Energy, Forces
+from nomad.datamodel.metainfo.run.run import Run, Program, TimeRun
+from nomad.datamodel.metainfo.run.method import (
+    Method, DFT, XCFunctional, Functional, Electronic, MethodReference)
+from nomad.datamodel.metainfo.run.system import (
+    System, Atoms, SystemReference)
+from nomad.datamodel.metainfo.run.calculation import (
+    Calculation, ScfIteration, Dos, DosValues, Energy, EnergyEntry, Forces, ForcesEntry)
+from nomad.datamodel.metainfo.workflow import Workflow, GeometryOptimization
 
 
 class OutParser(TextParser):
@@ -81,22 +86,22 @@ class OutParser(TextParser):
                 r'E N E R G Y   A N A L Y S I S([\s\S]+?)\={90}',
                 sub_parser=TextParser(quantities=[
                     Quantity(
-                        'energy_kinetic_electronic',
+                        'kinetic_electronic',
                         rf'Kinetic\s*({re_float})', dtype=float, unit=ureg.hartree),
                     Quantity(
-                        'energy_XC',
+                        'xc',
                         rf'XC\s*({re_float})', dtype=float, unit=ureg.hartree),
                     Quantity(
-                        'energy_electrostatic',
+                        'electrostatic',
                         rf'Electrostatic\s*({re_float})', dtype=float, unit=ureg.hartree),
                     Quantity(
-                        'energy_total',
+                        'total',
                         rf'Final bond energy \(.+\)\s*({re_float})', dtype=float, unit=ureg.hartree)])),
             Quantity(
                 'energy_total',
                 rf'Energy\s*\(hartree\)\s*({re_float})', dtype=float, unit=ureg.hartree),
             Quantity(
-                'forces_total',
+                'atom_forces',
                 r'FINAL GRADIENTS([\s\S]+?)\n *\n',
                 convert=False, str_operation=lambda x: np.array(
                     [v.split()[2:5] for v in x.strip().split('\n')],
@@ -168,37 +173,37 @@ class BandParser(FairdiParser):
         self.out_parser.logger = self.logger
 
     def parse_configurations(self):
-        sec_run = self.archive.section_run[0]
+        sec_run = self.archive.run[0]
 
         def parse_scc(source):
-            sec_scc = sec_run.m_create(SingleConfigurationCalculation)
+            sec_scc = sec_run.m_create(Calculation)
 
+            # total energy
+            sec_energy = sec_scc.m_create(Energy)
             if source.get('energy_total') is not None:
-                sec_scc.m_add_sub_section(
-                    SingleConfigurationCalculation.energy_total, Energy(
-                        value=source.get('energy_total')))
-
-            if source.get('forces_total') is not None:
-                sec_scc.m_add_sub_section(
-                    SingleConfigurationCalculation.forces_total, Forces(
-                        value=source.get('forces_total')))
+                sec_energy.total = EnergyEntry(value=source.get('energy_total'))
 
             # energy contributions
             for key, val in source.get('energies', {}).items():
                 if val is not None:
-                    sec_scc.m_add_sub_section(getattr(
-                        SingleConfigurationCalculation, key), Energy(value=val))
+                    setattr(sec_energy, key, EnergyEntry(value=val))
+
+            # atom forces
+            if source.get('atom_forces') is not None:
+                sec_forces = sec_scc.m_create(Forces)
+                sec_forces.total = ForcesEntry(value=source.get('atom_forces'))
 
             # self consistency
             for energy_change in source.get('self_consistency', {}).get('energy_change', []):
                 sec_scf = sec_scc.m_create(ScfIteration)
-                sec_scf.energy_change = energy_change
+                sec_scf_energy = sec_scf.m_create(Energy)
+                sec_scf_energy.change = energy_change
 
             # dos
             total_dos = source.get('total_dos', {}).get('dos')
             if total_dos is not None:
                 total_dos = np.transpose(total_dos)
-                sec_dos = sec_scc.m_create(Dos, SingleConfigurationCalculation.dos_electronic)
+                sec_dos = sec_scc.m_create(Dos, Calculation.dos_electronic)
                 sec_dos.energies = total_dos[0] * ureg.hartree
                 total_dos = total_dos[1:]
                 for spin in range(len(total_dos)):
@@ -211,10 +216,11 @@ class BandParser(FairdiParser):
         def parse_system(source):
             sec_system = sec_run.m_create(System)
 
+            sec_atoms = sec_system.m_create(Atoms)
             labels_positions = source.get('labels_positions')
             if labels_positions is not None:
-                sec_system.atom_labels = labels_positions[0]
-                sec_system.atom_positions = labels_positions[1]
+                sec_atoms.labels = labels_positions[0]
+                sec_atoms.positions = labels_positions[1]
 
             lattice_vectors = source.get('lattice_vectors')
             if lattice_vectors is not None:
@@ -223,30 +229,39 @@ class BandParser(FairdiParser):
                 for n in range(len(lattice_vectors), 3):
                     lattice_vectors.append([0, 0, 0])
                     pbc[n] = False
-                sec_system.lattice_vectors = lattice_vectors * ureg.bohr
-                sec_system.configuration_periodic_dimensions = pbc
+                sec_atoms.lattice_vectors = lattice_vectors * ureg.bohr
+                sec_atoms.periodic = pbc
 
             return sec_system
 
         def parse_method(source):
             sec_method = sec_run.m_create(Method)
-            sec_method.electronic_structure_method = 'DFT'
+            sec_dft = sec_method.m_create(DFT)
 
             dft_potential = source.get('model_parameters', {}).get('dft_potential', {})
             # TODO provide mapping
+            sec_xc_functional = sec_dft.m_create(XCFunctional)
             for xc_type in ['LDA', 'GGA', 'MGGA']:
                 functionals = dft_potential.get(xc_type, '').split()
                 kind = ['XC'] if len(functionals) == 1 else ['X', 'C']
                 for n, functional in enumerate(functionals):
-                    sec_functional = sec_method.m_create(XCFunctionals)
                     functional = functional.rstrip('x').rstrip('c').upper()
-                    sec_functional.XC_functional_name = '%s_%s_%s' % (xc_type, kind[n], functional)
+                    if kind[n] == 'X':
+                        sec_xc_functional.exchange.append(
+                            Functional(name='%s_%s_%s' % (xc_type, kind[n], functional)))
+                    elif kind[n] == 'C':
+                        sec_xc_functional.correlation.append(
+                            Functional(name='%s_%s_%s' % (xc_type, kind[n], functional)))
+                    else:
+                        sec_xc_functional.contributions.append(
+                            Functional(name='%s_%s_%s' % (xc_type, kind[n], functional)))
 
+            sec_electronic = sec_method.m_create(Electronic)
             spin = source.get('model_parameters', {}).get('spin')
-            sec_method.number_of_spin_channels = 2 if spin == ('UNrestricted') else 1
+            sec_electronic.n_spin_channels = 2 if spin == ('UNrestricted') else 1
 
             if source.get('total_charge') is not None:
-                sec_method.total_charge = source.total_charge
+                sec_electronic.charge = source.total_charge
 
             return sec_method
 
@@ -257,16 +272,21 @@ class BandParser(FairdiParser):
             sec_scc = parse_scc(source)
             sec_system = parse_system(source)
             sec_method = parse_method(source)
-            sec_scc.single_configuration_calculation_to_system_ref = sec_system
-            sec_scc.single_configuration_to_calculation_method_ref = sec_method
+            sec_scc.system_ref.append(SystemReference(value=sec_system))
+            sec_scc.method_ref.append(MethodReference(value=sec_method))
 
         parse_calculation(self.out_parser.get('single_point'))
 
         geometry_opt = self.out_parser.get('geometry_optimization')
         if geometry_opt is not None:
-            sec_sampling_method = sec_run.m_create(SamplingMethod)
-            for key, val in geometry_opt.items():
-                setattr(sec_sampling_method, key, val)
+            sec_workflow = self.archive.m_create(Workflow)
+            sec_workflow.type = 'geometry_optimization'
+            sec_geometry_opt = sec_workflow.m_create(GeometryOptimization)
+            sec_geometry_opt.method = geometry_opt.get('geometry_optimization_method', '')
+            sec_geometry_opt.input_force_maximum_tolerance = geometry_opt.get('geometry_optimization_threshold_force', 0)
+            sec_geometry_opt.input_energy_difference_tolerance = geometry_opt.get('geometry_optimization_energy_change', 0)
+            sec_geometry_opt.input_displacement_maximum_tolerance = geometry_opt.get('geometry_optimization_geometry_change', 0)
+
             for iteration in geometry_opt.get('iteration', []):
                 parse_calculation(iteration)
 
@@ -278,14 +298,10 @@ class BandParser(FairdiParser):
         self.init_parser()
 
         sec_run = self.archive.m_create(Run)
-        sec_run.program_name = 'BAND'
-        sec_run.program_basis_set_type = 'numeric AOs'
-
-        if self.out_parser.get('program_version') is not None:
-            sec_run.program_version = self.out_parser.program_version
+        sec_run.program = Program(name='BAND', version=self.out_parser.get('program_version', ''))
 
         if self.out_parser.get('time_start') is not None:
             dt = datetime.strptime(self.out_parser.time_start, '%b%d-%Y %H:%M:%S') - datetime(1970, 1, 1)
-            sec_run.time_run_date_start = dt.total_seconds()
+            sec_run.time_run = TimeRun(date_start=dt.total_seconds())
 
         self.parse_configurations()

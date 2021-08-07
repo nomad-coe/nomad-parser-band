@@ -16,14 +16,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import sys
-from nomad.metainfo import Environment
-from nomad.metainfo.legacy import LegacyMetainfoEnvironment
-import nomad.datamodel.metainfo.common
-import nomad.datamodel.metainfo.public
-import nomad.datamodel.metainfo.general
-
-m_env = LegacyMetainfoEnvironment()
-m_env.m_add_sub_section(Environment.packages, sys.modules['nomad.datamodel.metainfo.common'].m_package)  # type: ignore
-m_env.m_add_sub_section(Environment.packages, sys.modules['nomad.datamodel.metainfo.public'].m_package)  # type: ignore
-m_env.m_add_sub_section(Environment.packages, sys.modules['nomad.datamodel.metainfo.general'].m_package)  # type: ignore
+import numpy as np            # pylint: disable=unused-import
+import typing                 # pylint: disable=unused-import
+from nomad.metainfo import (  # pylint: disable=unused-import
+    MSection, MCategory, Category, Package, Quantity, Section, SubSection, SectionProxy,
+    Reference
+)
