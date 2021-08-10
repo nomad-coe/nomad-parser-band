@@ -79,12 +79,12 @@ def test_dos(parser):
     archive = EntryArchive()
     parser.parse('tests/data/NiO-dos.out', archive, None)
 
-    sec_dos = archive.run[0].calculation[0].dos_electronic
+    sec_dos = archive.run[0].calculation[0].dos_electronic[0]
     assert np.shape(sec_dos.total[1].value) == (158,)
     assert sec_dos.energies[78].magnitude == approx(-8.6717613e-20)
     assert sec_dos.total[1].value[19].magnitude == approx(4.66493971e+14)
 
     archive = EntryArchive()
     parser.parse('tests/data/NiO-dos-restricted.out', archive, None)
-    sec_dos = archive.run[0].calculation[0].dos_electronic
+    sec_dos = archive.run[0].calculation[0].dos_electronic[0]
     assert np.shape(sec_dos.total[0].value) == (154,)
