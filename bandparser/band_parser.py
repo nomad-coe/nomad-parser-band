@@ -26,7 +26,7 @@ from nomad.parsing.parser import FairdiParser
 from nomad.parsing.file_parser.text_parser import TextParser, Quantity
 from nomad.datamodel.metainfo.run.run import Run, Program, TimeRun
 from nomad.datamodel.metainfo.run.method import (
-    Method, DFT, XCFunctional, Functional, Electronic, MethodReference)
+    Method, DFT, XCFunctional, Functional, Electronic, MethodReference, BasisSet)
 from nomad.datamodel.metainfo.run.system import (
     System, Atoms, SystemReference)
 from nomad.datamodel.metainfo.run.calculation import (
@@ -236,6 +236,7 @@ class BandParser(FairdiParser):
 
         def parse_method(source):
             sec_method = sec_run.m_create(Method)
+            sec_method.basis_set.append(BasisSet(type='numeric AOs'))
             sec_dft = sec_method.m_create(DFT)
 
             dft_potential = source.get('model_parameters', {}).get('dft_potential', {})
