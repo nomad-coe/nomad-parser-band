@@ -24,12 +24,12 @@ from datetime import datetime
 from nomad.units import ureg
 from nomad.parsing.parser import FairdiParser
 from nomad.parsing.file_parser.text_parser import TextParser, Quantity
-from nomad.datamodel.metainfo.run.run import Run, Program, TimeRun
-from nomad.datamodel.metainfo.run.method import (
-    Method, DFT, XCFunctional, Functional, Electronic, MethodReference, BasisSet)
-from nomad.datamodel.metainfo.run.system import (
-    System, Atoms, SystemReference)
-from nomad.datamodel.metainfo.run.calculation import (
+from nomad.datamodel.metainfo.simulation.run import Run, Program, TimeRun
+from nomad.datamodel.metainfo.simulation.method import (
+    Method, DFT, XCFunctional, Functional, Electronic, BasisSet)
+from nomad.datamodel.metainfo.simulation.system import (
+    System, Atoms)
+from nomad.datamodel.metainfo.simulation.calculation import (
     Calculation, ScfIteration, Dos, DosValues, Energy, EnergyEntry, Forces, ForcesEntry)
 from nomad.datamodel.metainfo.workflow import Workflow, GeometryOptimization
 
@@ -273,8 +273,8 @@ class BandParser(FairdiParser):
             sec_scc = parse_scc(source)
             sec_system = parse_system(source)
             sec_method = parse_method(source)
-            sec_scc.system_ref.append(SystemReference(value=sec_system))
-            sec_scc.method_ref.append(MethodReference(value=sec_method))
+            sec_scc.system_ref = sec_system
+            sec_scc.method_ref = sec_method
 
         parse_calculation(self.out_parser.get('single_point'))
 
